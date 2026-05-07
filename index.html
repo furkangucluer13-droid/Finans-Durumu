@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finansal Dashboard + Grafikler</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #1a535c;
+            --secondary: #4ecdc4;
+            --accent: #ff6b6b;
+            --bg: #f8fafc;
+            --white: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); color: #1e293b; padding: 30px; }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { 
+            margin-bottom: 30px; padding: 10px; border-left: 5px solid var(--primary); 
+            display: flex; justify-content: space-between; align-items: center; 
+        }
+
+        .summary-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px; margin-bottom: 30px;
+        }
+
+        .card {
+            background: var(--white); padding: 20px; border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); text-align: center;
+            border-bottom: 5px solid var(--border);
+        }
+
+        .card.income { border-bottom-color: var(--secondary); }
+        .card.expense { border-bottom-color: var(--accent); }
+        .card.asset { border-bottom-color: #f59e0b; }
+        .card.debt { border-bottom-color: #475569; }
+        .card.net { background: var(--primary); color: white; border-bottom: none; }
+
+        .amount { font-size: 1.5rem; font-weight: bold; }
+        h3 { font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px; color: #64748b; }
+        .card.net h3 { color: #cbd5e1; }
+
+        .main-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px; margin-bottom: 40px;
+        }
+
+        .section-box {
+            background: var(--white); border-radius: 15px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .section-header {
+            background: #f1f5f9; padding: 15px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        /* Grafik Alanı */
+        .chart-container {
+            background: var(--white); border-radius: 15px; padding: 30px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+            display: flex; flex-direction: column; align-items: center;
+            border: 1px solid var(--border); margin-top: 30px;
+        }
+
+        .chart-wrapper { width: 100%; max-width: 500px; }
+
+        .btn-add {
+            background: var(--secondary); color: white; border: none;
+            width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 1.4rem;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 15px; font-size: 0.75rem; color: #94a3b8; background: #f8fafc; }
+        td { padding: 10px 15px; border-bottom: 1px solid #f8fafc; }
+
+        input, select {
+            width: 100%; padding: 8px; border: 1px solid #cbd5e1;
+            border-radius: 7px; font-size: 0.9rem;
+        }
+
+        .row-delete { color: #94a3b8; cursor: pointer; text-align: center; font-size: 1.3rem; }
+        .btn-clear { background: var(--accent); color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>Finansal Dashboard + Analiz</h1>
+            <p>Görsel grafiklerle durumunuzu takip edin.</p>
+        </div>
+        <button class="btn-clear" onclick="clearAllData()">Tümünü Sıfırla</button>
+    </header>
+
+    <div class="summary-grid">
+        <div class="card income"><h3>Toplam Gelir</h3><div class="amount" id="sum-income">0,00 ₺</div></div>
+        <div class="card expense"><h3>Toplam Gider</h3><div class="amount" id="sum-expense">0,00 ₺</div></div>
+        <div class="card asset"><h3>Toplam Varlık</h3><div class="amount" id="sum-asset">0,00 ₺</div></div>
+        <div class="card debt"><h3>Toplam Borç</h3><div class="amount" id="sum-debt">0,00 ₺</div></div>
+        <div class="card net"><h3>Net Durum</h3><div class="amount" id="sum-net">0,00 ₺</div></div>
+    </div>
+
+    <div class="main-grid">
+        <div class="section-box">
+            <div class="section-header"><h2>Gelirlerim</h2><button class="btn-add" onclick="addRow('table-income')">+</button></div>
+            <table id="table-income"><thead><tr><th>Kaynak</th><th>Tutar</th><th>Sıklık</th><th></th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="section-box">
+            <div class="section-header"><h2>Giderlerim</h2><button class="btn-add" onclick="addRow('table-expense')">+</button></div>
+            <table id="table-expense"><thead><tr><th>Gider</th><th>Tutar</th><th>Tür</th><th></th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="section-box">
+            <div class="section-header"><h2>Varlıklarım</h2><button class="btn-add" onclick="addRow('table-asset')">+</button></div>
+            <table id="table-asset"><thead><tr><th>Varlık</th><th>Değer</th><th>Likidite</th><th></th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="section-box">
+            <div class="section-header"><h2>Borçlarım</h2><button class="btn-add" onclick="addRow('table-debt')">+</button></div>
+            <table id="table-debt"><thead><tr><th>Borç</th><th>Tutar</th><th></th><th></th></tr></thead><tbody></tbody></table>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <h2>Finansal Dağılım Analizi</h2>
+        <div class="chart-wrapper">
+            <canvas id="financeChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    const TABLES = ['table-income', 'table-expense', 'table-asset', 'table-debt'];
+    let myChart;
+
+    // 1. GRAFİĞİ BAŞLAT
+    function initChart() {
+        const ctx = document.getElementById('financeChart').getContext('2d');
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Gelir', 'Gider', 'Varlık', 'Borç'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#4ecdc4', '#ff6b6b', '#f59e0b', '#475569'],
+                    borderWidth: 2,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    // 2. VERİLERİ KAYDET VE GRAFİĞİ GÜNCELLE
+    function saveData() {
+        const fullData = {};
+        TABLES.forEach(tableId => {
+            const rows = [];
+            document.querySelectorAll(`#${tableId} tbody tr`).forEach(tr => {
+                const inputs = tr.querySelectorAll('input, select');
+                rows.push({ name: inputs[0].value, val: inputs[1].value, opt: inputs[2] ? inputs[2].value : '' });
+            });
+            fullData[tableId] = rows;
+        });
+        localStorage.setItem('myFinDataV3', JSON.stringify(fullData));
+        calculate();
+    }
+
+    // 3. HESAPLA VE GRAFİĞE AKTAR
+    function calculate() {
+        const inc = getSum('val-income');
+        const exp = getSum('val-expense');
+        const ast = getSum('val-asset');
+        const dbt = getSum('val-debt');
+        const net = (ast + inc) - (exp + dbt);
+
+        updateUI('sum-income', inc);
+        updateUI('sum-expense', exp);
+        updateUI('sum-asset', ast);
+        updateUI('sum-debt', dbt);
+        updateUI('sum-net', net);
+
+        // Grafiği güncelle
+        if(myChart) {
+            myChart.data.datasets[0].data = [inc, exp, ast, dbt];
+            myChart.update();
+        }
+    }
+
+    // YARDIMCI FONKSİYONLAR
+    function loadData() {
+        initChart();
+        const saved = localStorage.getItem('myFinDataV3');
+        if (!saved) { TABLES.forEach(id => addRow(id)); return; }
+        const data = JSON.parse(saved);
+        TABLES.forEach(tableId => {
+            document.getElementById(tableId).querySelector('tbody').innerHTML = '';
+            data[tableId].forEach(item => addRow(tableId, item.name, item.val, item.opt));
+        });
+        calculate();
+    }
+
+    function addRow(tableId, name = '', val = '', opt = '') {
+        const tbody = document.getElementById(tableId).querySelector('tbody');
+        const row = tbody.insertRow();
+        const cat = tableId.split('-')[1];
+        let selHTML = '';
+        if(cat === 'income') selHTML = `<select onchange="saveData()"><option ${opt==='Aylık'?'selected':''}>Aylık</option><option ${opt==='Haftalık'?'selected':''}>Haftalık</option></select>`;
+        else if(cat === 'expense') selHTML = `<select onchange="saveData()"><option ${opt==='Sabit'?'selected':''}>Sabit</option><option ${opt==='Değişken'?'selected':''}>Değişken</option></select>`;
+        else if(cat === 'asset') selHTML = `<select onchange="saveData()"><option ${opt==='Easy'?'selected':''}>Easy</option><option ${opt==='Mid'?'selected':''}>Mid</option><option ${opt==='Hard'?'selected':''}>Hard</option></select>`;
+        else selHTML = '<span></span>';
+
+        row.innerHTML = `
+            <td><input type="text" value="${name}" oninput="saveData()"></td>
+            <td><input type="number" class="val-${cat}" value="${val}" oninput="saveData()"></td>
+            <td>${selHTML}</td>
+            <td class="row-delete" onclick="removeRow(this)">×</td>
+        `;
+    }
+
+    function removeRow(btn) { btn.closest('tr').remove(); saveData(); }
+    function getSum(cls) { return Array.from(document.getElementsByClassName(cls)).reduce((t, i) => t + (parseFloat(i.value) || 0), 0); }
+    function updateUI(id, v) { document.getElementById(id).innerText = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(v); }
+    function clearAllData() { if(confirm('Tüm veriler silinecek?')) { localStorage.removeItem('myFinDataV3'); location.reload(); } }
+
+    window.onload = loadData;
+</script>
+</body>
+</html>
